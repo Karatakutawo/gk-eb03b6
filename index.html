@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Giriş</title>
+<style>
+:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;font:16px system-ui,sans-serif;background:#14111a;color:#eee}
+form{width:min(92vw,360px);display:grid;gap:12px}input,button{font:inherit;padding:14px;border-radius:12px;border:1px solid #555;background:#221d2b;color:#eee}
+button{background:#d96f8a;color:#111;border:0;font-weight:700}#m{min-height:1.4em;color:#f3a}
+</style></head><body>
+<form id="f"><div>Parola</div><input id="p" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" autofocus><button id="b">Aç</button><div id="m">Dosya iniyor...</div></form>
+<script>
+const S="JvP3FmgRk5uvAKLIZUyPDQ==",N="BRzZT7q+/G77ApCi",T=600000,B=186395,U="d.bin?v=785e928f67";
+const b=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const el=i=>document.getElementById(i);
+let on="",bitti=false;
+const veri=(async()=>{
+  const r=await fetch(U);
+  if(!r.ok)throw new Error("dosya indirilemedi ("+r.status+")");
+  if(!(r.body&&r.body.getReader)){const a=new Uint8Array(await r.arrayBuffer());bitti=true;return a;}
+  const rd=r.body.getReader(),o=[];let n=0;
+  for(;;){
+    const x=await rd.read();if(x.done)break;
+    o.push(x.value);n+=x.value.length;
+    el("m").textContent=on+"Dosya iniyor %"+Math.min(99,Math.round(100*n/B))+" ("+(n/1048576).toFixed(1)+" / "+(B/1048576).toFixed(1)+" MB)";
+  }
+  const a=new Uint8Array(n);let p=0;for(const c of o){a.set(c,p);p+=c.length;}
+  bitti=true;el("m").textContent=on+"Dosya indi.";return a;
+})();
+veri.catch(x=>{el("m").textContent="İndirilemedi: "+(x&&x.message?x.message:x)+" (sayfayı yenile)";});
+el("f").onsubmit=async e=>{
+  e.preventDefault();const m=el("m"),dg=el("b");
+  dg.disabled=true;on="Parola alındı. ";m.textContent=on+(bitti?"Doğrulanıyor...":"Dosya iniyor, bitince açılacak...");
+  try{
+    if(!(window.crypto&&crypto.subtle))throw new Error("bu tarayıcıda güvenli bağlam yok (https gerekir)");
+    const k0=await crypto.subtle.importKey("raw",new TextEncoder().encode(el("p").value.trim()),"PBKDF2",false,["deriveKey"]);
+    const k=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b(S),iterations:T,hash:"SHA-256"},k0,{name:"AES-GCM",length:256},false,["decrypt"]);
+    const v=await veri;
+    m.textContent="Sayfa çözülüyor...";
+    let d;try{d=await crypto.subtle.decrypt({name:"AES-GCM",iv:b(N)},k,v);}catch(x){on="";m.textContent="Parola yanlış.";dg.disabled=false;return;}
+    m.textContent="Açılıyor, birkaç saniye sürebilir...";
+    await new Promise(r=>setTimeout(r,30));
+    const h=new TextDecoder().decode(d);document.open();document.write(h);document.close();
+  }catch(x){on="";m.textContent="Açılamadı: "+(x&&x.message?x.message:x);dg.disabled=false;}
+};
+</script>
+</body></html>
